@@ -1,0 +1,23 @@
+{
+  "name": "chessarena",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @chessarena/web",
+    "dev:api": "npm run dev --workspace @chessarena/api",
+    "build:web": "npm run build --workspace @chessarena/web",
+    "build:api": "npm run build --workspace @chessarena/api",
+    "test": "vitest --run",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8",
+    "@types/node": "^22.10.2"
+  }
+}
