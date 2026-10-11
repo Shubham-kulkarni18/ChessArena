@@ -97,4 +97,62 @@ app.post("/api/players", async (request, reply) => {
 });
 
 
+app.put("/api/players/:id", async (request, reply) => {
+  // 1. Read the player ID from the URL
+  const { id } = request.params as { id: string };
+  const playerId = Number(id);
+
+  // 2. Validate the ID
+  if (!Number.isInteger(playerId) || playerId < 1) {
+    return reply.code(400).send({
+      message: "Player ID must be a positive integer"
+    });
+  }
+
+  // 3. Find the existing player
+  const player = players.find((p) => p.id === playerId);
+
+  if (!player) {
+    return reply.code(404).send({
+      message: "Player not found"
+    });
+  }
+
+  // 4. Read the request body
+  const body = request.body as {
+    username?: unknown;
+    rating?: unknown;
+  };
+
+  // 5. Validate the username
+  if (
+    typeof body?.username !== "string" ||
+    body.username.trim().length === 0 ||
+    body.username.trim().length > 20
+  ) {
+    return reply.code(400).send({
+      message: "Username must contain 1 to 20 characters"
+    });
+  }
+
+  // 6. Validate the rating
+  if (
+    typeof body.rating !== "number" ||
+    !Number.isInteger(body.rating) ||
+    body.rating < 0
+  ) {
+    return reply.code(400).send({
+      message: "Rating must be a non-negative integer"
+    });
+  }
+
+  // 7. Update the player
+  player.username = body.username.trim();
+  player.rating = body.rating;
+
+  // 8. Return the updated player
+  return player;
+});
+
+
 }           
