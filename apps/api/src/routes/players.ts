@@ -155,4 +155,38 @@ app.put("/api/players/:id", async (request, reply) => {
 });
 
 
+app.delete("/api/players/:id", async (request, reply) => {
+  // 1. Read the ID from the URL
+  const { id } = request.params as { id: string };
+  const playerId = Number(id);
+
+  // 2. Validate the ID
+  if (!Number.isInteger(playerId) || playerId < 1) {
+    return reply.code(400).send({
+      message: "Player ID must be a positive integer"
+    });
+  }
+
+  // 3. Find the player's position in the array
+  const playerIndex = players.findIndex(
+    (p) => p.id === playerId
+  );
+
+  // 4. Check whether the player exists
+  if (playerIndex === -1) {
+    return reply.code(404).send({
+      message: "Player not found"
+    });
+  }
+
+  // 5. Remove the player
+  players.splice(playerIndex, 1);
+
+  // 6. Confirm successful deletion
+  return reply.code(200).send({
+    message: "Player deleted successfully"
+  });
+});
+
+
 }           
