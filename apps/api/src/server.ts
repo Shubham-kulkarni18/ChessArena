@@ -1,30 +1,19 @@
-import Fastify from "fastify";
-import playerRoutes from "./routes/players.js";
+import { buildApp } from "./app.js";
+import { config } from "./config/index.js";
 
-const app = Fastify({
-  logger: true,
-  ajv: {
-    customOptions: {
-      removeAdditional: false
-    }
+async function startServer() {
+  const app = await buildApp();
+
+  try {
+    await app.listen({
+      port: config.port,
+      host: "0.0.0.0",
+    });
+  } catch (error) {
+    app.log.error(error);
+    process.exitCode = 1;
+    await app.close();
   }
-});
+}
 
-app.get("/health", async () => {
-  return {
-    status: "ChessArena is alive"
-  };
-});
-
-app.register(playerRoutes);
-
-// Your /api endpoint goes here
-
-app.listen({ port: 3000 }, (error, address) => {
-  if (error) {
-    console.error(error);
-    process.exit(1);
-  }
-
-  console.log(`Server running at ${address}`);
-});
+startServer();
