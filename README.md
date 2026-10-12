@@ -1,5 +1,13 @@
 # ChessArena
 
+A real-time multiplayer chess platform.
+
+## Architecture 
+1. **Client (Next.js/React):** Displays the board and sends HTTP requests (and WebSockets) when a player makes a move.
+2. **API Server (Fastify):** The central brain. It receives requests, validates chess rules, and prevents illegal moves.
+3. **Database (PostgreSQL):** The permanent storage for user accounts, match histories, and ratings. The frontend NEVER touches this directly.
+
+
 A full-stack chess platform monorepo built with Next.js on the frontend, Fastify + TypeScript on the backend, PostgreSQL, Redis, WebSockets, and BullMQ for background processing.
 
 ## Tech stack

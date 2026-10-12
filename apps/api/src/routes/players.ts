@@ -54,47 +54,48 @@ app.get("/api/players/:id", async (request, reply) => {
 });
 
 
-app.post("/api/players", async (request, reply) => {
-  const body = request.body as {
-    username?: unknown;
-    rating?: unknown;
-  };
 
-  // 1. Validate the username
-  if (
-    typeof body?.username !== "string" ||
-    body.username.trim().length === 0 ||
-    body.username.trim().length > 20
-  ) {
-    return reply.code(400).send({
-      message: "Username must contain 1 to 20 characters"
-    });
+app.post(
+  "/api/players",
+  {
+    schema: {
+      body: {
+        type: "object",
+        required: ["username", "rating"],
+        additionalProperties: false,
+        properties: {
+          username: {
+            type: "string",
+            minLength: 1,
+            maxLength: 20,
+            pattern: ".*\\S.*"
+          },
+          rating: {
+            type: "integer",
+            minimum: 0
+          }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
+    const body = request.body as {
+      username: string;
+      rating: number;
+    };
+
+    const newPlayer = {
+      id: Math.max(0, ...players.map((p) => p.id)) + 1,
+      username: body.username.trim(),
+      rating: body.rating
+    };
+
+    players.push(newPlayer);
+
+    return reply.code(201).send(newPlayer);
   }
+);
 
-  // 2. Validate the rating
-  if (
-    typeof body.rating !== "number" ||
-    !Number.isInteger(body.rating) ||
-    body.rating < 0
-  ) {
-    return reply.code(400).send({
-      message: "Rating must be a non-negative integer"
-    });
-  }
-
-  // 3. Create the new player
-  const newPlayer = {
-    id: Math.max(0, ...players.map((p) => p.id)) + 1,
-    username: body.username.trim(),
-    rating: body.rating
-  };
-
-  // 4. Add the player to the array
-  players.push(newPlayer);
-
-  // 5. Return the created player
-  return reply.code(201).send(newPlayer);
-});
 
 
 app.put("/api/players/:id", async (request, reply) => {

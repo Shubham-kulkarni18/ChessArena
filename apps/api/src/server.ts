@@ -1,7 +1,14 @@
 import Fastify from "fastify";
 import playerRoutes from "./routes/players.js";
 
-const app = Fastify();
+const app = Fastify({
+  logger: true,
+  ajv: {
+    customOptions: {
+      removeAdditional: false
+    }
+  }
+});
 
 app.get("/health", async () => {
   return {
