@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-
+import { pool } from "../infrastructure/database.js";
 const players = [
   {
     id: 1,
@@ -21,37 +21,62 @@ const players = [
 export default async function playerRoutes(
   app: FastifyInstance
 ) {
-  app.get("/api/players", async () => {
-    return players;
+ 
+app.get("/api/players", async (request, reply) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, username, rating, created_at FROM players ORDER BY id ASC"
+    );
+
+    return result.rows;
+  } catch (error) {
+    request.log.error(error, "Failed to fetch players");
+
+    return reply.code(500).send({
+      message: "Failed to fetch players"
+    });
   }
-);
+});
+
+
+
 
 
 app.get("/api/players/:id", async (request, reply) => {
   const { id } = request.params as { id: string };
-
   const playerId = Number(id);
 
-  // Step 1: Validate the ID
   if (!Number.isInteger(playerId) || playerId < 1) {
     return reply.code(400).send({
       message: "Player ID must be a positive integer"
     });
   }
 
-  // Step 2: Find the player
-  const player = players.find((p) => p.id === playerId);
+  try {
+    const result = await pool.query(
+      `SELECT id, username, rating, created_at
+       FROM players
+       WHERE id = $1`,
+      [playerId]
+    );
 
-  // Step 3: Handle a player that doesn't exist
-  if (!player) {
-    return reply.code(404).send({
-      message: "Player not found"
+    if (result.rows.length === 0) {
+      return reply.code(404).send({
+        message: "Player not found"
+      });
+    }
+
+    return result.rows[0];
+  } catch (error) {
+    request.log.error(error, "Failed to fetch player");
+
+    return reply.code(500).send({
+      message: "Failed to fetch player"
     });
   }
-
-  // Step 4: Return the player
-  return player;
 });
+
+
 
 
 
@@ -84,48 +109,54 @@ app.post(
       rating: number;
     };
 
-    const newPlayer = {
-      id: Math.max(0, ...players.map((p) => p.id)) + 1,
-      username: body.username.trim(),
-      rating: body.rating
-    };
+    try {
+      const result = await pool.query(
+        `INSERT INTO players (username, rating)
+         VALUES ($1, $2)
+         RETURNING id, username, rating, created_at`,
+        [body.username.trim(), body.rating]
+      );
 
-    players.push(newPlayer);
+      return reply.code(201).send(result.rows[0]);
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "23505"
+      ) {
+        return reply.code(409).send({
+          message: "Username already exists"
+        });
+      }
 
-    return reply.code(201).send(newPlayer);
+      request.log.error(error, "Failed to create player");
+
+      return reply.code(500).send({
+        message: "Failed to create player"
+      });
+    }
   }
 );
 
 
 
+
 app.put("/api/players/:id", async (request, reply) => {
-  // 1. Read the player ID from the URL
   const { id } = request.params as { id: string };
   const playerId = Number(id);
 
-  // 2. Validate the ID
   if (!Number.isInteger(playerId) || playerId < 1) {
     return reply.code(400).send({
       message: "Player ID must be a positive integer"
     });
   }
 
-  // 3. Find the existing player
-  const player = players.find((p) => p.id === playerId);
-
-  if (!player) {
-    return reply.code(404).send({
-      message: "Player not found"
-    });
-  }
-
-  // 4. Read the request body
   const body = request.body as {
     username?: unknown;
     rating?: unknown;
   };
 
-  // 5. Validate the username
   if (
     typeof body?.username !== "string" ||
     body.username.trim().length === 0 ||
@@ -136,7 +167,6 @@ app.put("/api/players/:id", async (request, reply) => {
     });
   }
 
-  // 6. Validate the rating
   if (
     typeof body.rating !== "number" ||
     !Number.isInteger(body.rating) ||
@@ -147,46 +177,82 @@ app.put("/api/players/:id", async (request, reply) => {
     });
   }
 
-  // 7. Update the player
-  player.username = body.username.trim();
-  player.rating = body.rating;
+  try {
+    const result = await pool.query(
+      `UPDATE players
+       SET username = $1, rating = $2
+       WHERE id = $3
+       RETURNING id, username, rating, created_at`,
+      [body.username.trim(), body.rating, playerId]
+    );
 
-  // 8. Return the updated player
-  return player;
+    if (result.rows.length === 0) {
+      return reply.code(404).send({
+        message: "Player not found"
+      });
+    }
+
+    return result.rows[0];
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "23505"
+    ) {
+      return reply.code(409).send({
+        message: "Username already exists"
+      });
+    }
+
+    request.log.error(error, "Failed to update player");
+
+    return reply.code(500).send({
+      message: "Failed to update player"
+    });
+  }
 });
 
 
+
+
 app.delete("/api/players/:id", async (request, reply) => {
-  // 1. Read the ID from the URL
   const { id } = request.params as { id: string };
   const playerId = Number(id);
 
-  // 2. Validate the ID
+  // Validate the player ID
   if (!Number.isInteger(playerId) || playerId < 1) {
     return reply.code(400).send({
       message: "Player ID must be a positive integer"
     });
   }
 
-  // 3. Find the player's position in the array
-  const playerIndex = players.findIndex(
-    (p) => p.id === playerId
-  );
+  try {
+    const result = await pool.query(
+      `DELETE FROM players
+       WHERE id = $1
+       RETURNING id, username, rating`,
+      [playerId]
+    );
 
-  // 4. Check whether the player exists
-  if (playerIndex === -1) {
-    return reply.code(404).send({
-      message: "Player not found"
+    // Check whether a player was deleted
+    if (result.rows.length === 0) {
+      return reply.code(404).send({
+        message: "Player not found"
+      });
+    }
+
+    return reply.code(200).send({
+      message: "Player deleted successfully",
+      player: result.rows[0]
+    });
+  } catch (error) {
+    request.log.error(error, "Failed to delete player");
+
+    return reply.code(500).send({
+      message: "Failed to delete player"
     });
   }
-
-  // 5. Remove the player
-  players.splice(playerIndex, 1);
-
-  // 6. Confirm successful deletion
-  return reply.code(200).send({
-    message: "Player deleted successfully"
-  });
 });
 
 
