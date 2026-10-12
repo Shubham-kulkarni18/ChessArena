@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import playerRoutes from "./routes/players.js";
-
+import authRoutes from "./routes/auth.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -24,6 +24,6 @@ export async function buildApp() {
   });
 
   await app.register(playerRoutes);
-
+  await app.register(authRoutes);
   return app;
 }
